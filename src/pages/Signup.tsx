@@ -62,6 +62,9 @@ export default function Signup() {
 
       await batch.commit();
       
+      // Increment global user stat
+      fetch('/api/stats/user', { method: 'POST' }).catch(console.error);
+
       navigate('/dashboard');
     } catch (err: any) {
       console.error('Signup error:', err);

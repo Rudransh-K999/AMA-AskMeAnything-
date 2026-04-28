@@ -7,16 +7,25 @@ export interface UserProfile {
   displayName?: string;
   bio?: string;
   photoURL?: string;
+  isPortalOpen?: boolean;
   createdAt: Date | Timestamp;
 }
 
 export interface Question {
   id: string;
   text: string;
+  askerId: string;
+  recipientId: string;
   createdAt: Date | Timestamp;
   reply?: string;
   repliedAt?: Date | Timestamp;
   isPublic?: boolean;
+}
+
+export interface GlobalStats {
+  totalUsers: number;
+  totalQuestions: number;
+  totalPortals: number;
 }
 
 export interface AskDropForm {

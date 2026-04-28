@@ -1,8 +1,23 @@
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Shield, Smartphone, AtSign, MessageSquareQuote, Clock, Infinity } from 'lucide-react';
+import { db } from '../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { GlobalStats } from '../types';
 
 export default function Home() {
+  const [stats, setStats] = useState<GlobalStats>({ totalUsers: 0, totalQuestions: 0, totalPortals: 0 });
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'stats', 'global'), (doc) => {
+      if (doc.exists()) {
+        setStats(doc.data() as GlobalStats);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-24 text-center">
       <motion.div
@@ -14,13 +29,13 @@ export default function Home() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6 }}
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-[10px] font-bold tracking-widest uppercase mb-8"
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white text-[10px] font-bold tracking-widest uppercase mb-8"
         >
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
           </span>
-          Live anonymous inbox
+          System Live
         </motion.div>
 
         <h1 className="text-6xl sm:text-8xl font-black tracking-tighter mb-8 leading-[0.9]">
@@ -35,6 +50,20 @@ export default function Home() {
           <Link to="/signup" className="btn-primary w-full sm:w-auto px-10 py-5 text-lg">
             Claim my free AMA link
           </Link>
+        </div>
+
+        {/* Live Stats Bar */}
+        <div className="mt-20 flex flex-wrap items-center justify-center gap-12 pt-12 border-t border-neutral-900/50">
+            {[
+                { label: 'Portals Opened', value: stats.totalPortals },
+                { label: 'Questions Asked', value: stats.totalQuestions },
+                { label: 'Registered Users', value: stats.totalUsers }
+            ].map((s, i) => (
+                <div key={i} className="text-center">
+                    <div className="text-3xl font-black mb-1">{s.value.toLocaleString()}</div>
+                    <div className="text-[8px] font-mono text-neutral-500 uppercase tracking-widest">{s.label}</div>
+                </div>
+            ))}
         </div>
       </motion.div>
 

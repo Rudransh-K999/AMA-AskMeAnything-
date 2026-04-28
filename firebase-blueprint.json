@@ -10,6 +10,7 @@
         "displayName": { "type": "string" },
         "bio": { "type": "string" },
         "photoURL": { "type": "string" },
+        "isPortalOpen": { "type": "boolean", "description": "Whether the AMA portal is active" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email", "username", "createdAt"]
@@ -25,19 +26,34 @@
     },
     "Question": {
       "title": "Question",
-      "description": "An anonymous question submitted to a user",
+      "description": "A question submitted to a user",
       "type": "object",
       "properties": {
         "text": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
+        "askerId": { "type": "string", "description": "ID of the user who asked" },
+        "askerUsername": { "type": "string" },
+        "recipientId": { "type": "string" },
         "reply": { "type": "string", "description": "The answer from the user" },
         "repliedAt": { "type": "string", "format": "date-time" },
-        "isPublic": { "type": "boolean", "description": "Whether the reply is published" }
+        "isPublic": { "type": "boolean", "description": "Whether the reply is published (private by default now)" }
       },
-      "required": ["text", "createdAt"]
+      "required": ["text", "createdAt", "askerId", "recipientId"]
+    },
+    "GlobalStats": {
+      "title": "Global Stats",
+      "properties": {
+        "totalUsers": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "totalPortals": { "type": "number" }
+      }
     }
   },
   "firestore": {
+    "/stats/global": {
+      "schema": "GlobalStats",
+      "description": "Global counters"
+    },
     "/users/{userId}": {
       "schema": "User",
       "description": "User profile"

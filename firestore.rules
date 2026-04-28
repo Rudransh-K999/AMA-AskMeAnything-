@@ -27,6 +27,11 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // stats
+    match /stats/{docId} {
+      allow read: if true;
+    }
+
     // Usernames Registry (Uniqueness check)
     match /usernames/{username} {
       allow get: if true;
@@ -38,7 +43,7 @@ service cloud.firestore {
       allow get: if true; // Public profiles
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'photoURL', 'username']);
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'photoURL', 'username', 'isPortalOpen']);
       
       function isValidUser(data) {
         return data.keys().hasAll(['email', 'username', 'createdAt']) &&
@@ -48,16 +53,19 @@ service cloud.firestore {
 
       // Questions (Subcollection)
       match /questions/{questionId} {
-        // Owner can see all. Public can see only if it has a reply.
-        allow get: if isOwner(userId) || (existing() != null && existing().isPublic == true);
-        allow list: if isOwner(userId) || (resource.data.isPublic == true);
+        // Recipient can see all. Asker can see theirs.
+        allow get: if isOwner(userId) || (isSignedIn() && existing().askerId == request.auth.uid);
+        allow list: if isOwner(userId) || (isSignedIn() && resource.data.askerId == request.auth.uid);
         
-        // Deletion only for owner
         allow delete: if isOwner(userId);
-        
-        // Creation is usually via API, but we'll allow client list/read for owner
         allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasAny(['reply', 'repliedAt', 'isPublic']);
       }
+    }
+
+    // CollectionGroup for Replies
+    match /{path=**}/questions/{questionId} {
+        allow list: if isSignedIn() && resource.data.askerId == request.auth.uid;
+        allow get: if isSignedIn() && resource.data.askerId == request.auth.uid;
     }
   }
 }

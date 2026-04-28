@@ -79,6 +79,12 @@ try {
 
         const { userId } = usernameDoc.data()!;
         
+        // Count existing questions (optional but recommended for the "100 questions" limit)
+        const questionsCount = await dbInstance.collection('users').doc(userId).collection('questions').count().get();
+        if (questionsCount.data().count >= 100) {
+          return res.status(400).json({ error: 'Question limit reached for this member.' });
+        }
+        
         // Add question to user's questions subcollection
         await dbInstance.collection('users').doc(userId).collection('questions').add({
           text,

@@ -5,7 +5,6 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
-import Setup from './pages/Setup';
 import PublicProfile from './pages/PublicProfile';
 import { Layout } from './components/Layout';
 
@@ -24,7 +23,6 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/setup" element={<PrivateRoute><Setup /></PrivateRoute>} />
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/a/:username" element={<PublicProfile />} />
             <Route path="*" element={<Navigate to="/" />} />

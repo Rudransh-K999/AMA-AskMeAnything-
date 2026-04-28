@@ -132,7 +132,7 @@ export default function Dashboard() {
               WELCOME BACK, {profile.displayName?.toUpperCase().split(' ')[0]}.
             </h1>
             <p className="text-neutral-500 font-mono text-xs uppercase tracking-widest">
-              Live at <span className="text-white hover:underline cursor-pointer" onClick={copyLink}>/a/{profile.username}</span>
+              Live at <span className="text-white hover:underline cursor-pointer" onClick={copyLink}>@{profile.username}</span>
             </p>
           </div>
           
@@ -256,7 +256,7 @@ export default function Dashboard() {
                 onClick={copyLink}
                 className="font-display font-medium text-lg mb-4 truncate text-neutral-400 group-hover:text-white transition-colors cursor-pointer"
               >
-                ama.xyz/a/{profile.username}
+                {window.location.host}/a/{profile.username || '...'}
               </div>
               <button onClick={copyLink} className="w-full btn-primary text-xs tracking-widest uppercase">
                 {copied ? 'Link Copied' : 'Copy Invite Link'}

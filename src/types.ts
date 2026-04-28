@@ -1,9 +1,22 @@
 import { Timestamp } from 'firebase/firestore';
 
 export interface UserProfile {
+  id: string;
   email: string;
+  username: string;
+  displayName?: string;
+  bio?: string;
+  photoURL?: string;
   createdAt: Date | Timestamp;
-  activeFormId: string | null;
+}
+
+export interface Question {
+  id: string;
+  text: string;
+  createdAt: Date | Timestamp;
+  reply?: string;
+  repliedAt?: Date | Timestamp;
+  isPublic?: boolean;
 }
 
 export interface AskDropForm {
@@ -16,9 +29,11 @@ export interface AskDropForm {
   isExpired?: boolean;
 }
 
-export interface Question {
-  id: string;
-  text: string;
-  createdAt: Date | Timestamp;
-  ipHash: string;
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
 }

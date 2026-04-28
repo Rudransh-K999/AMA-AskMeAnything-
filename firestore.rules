@@ -27,50 +27,36 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Users
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && isValidUser(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'activeFormId']);
-      
-      function isValidUser(data) {
-        return data.keys().hasAll(['email']) &&
-               data.email is string && data.email.size() <= 256;
-      }
+    // Usernames Registry (Uniqueness check)
+    match /usernames/{username} {
+      allow get: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidId(username);
     }
 
-    // Forms
-    match /forms/{formId} {
-      // get: Public needs to see a specific form
-      // list: Users can list their own forms in dashboard, AND public can search by slug
-      allow get: if true;
-      allow list: if true; // Public needs to find forms by slug. Security is handled by only sharing slugs.
+    // Users
+    match /users/{userId} {
+      allow get: if true; // Public profiles
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'photoURL', 'username']);
       
-      allow create: if isSignedIn() && isValidForm(incoming()) && incoming().userId == request.auth.uid;
-      allow update: if isOwner(existing().userId) && isValidForm(incoming()) && 
-                    (incoming().diff(existing()).affectedKeys().hasOnly(['questionCount', 'isExpired']));
-      allow delete: if isOwner(existing().userId);
-
-      function isValidForm(data) {
-        return data.keys().hasAll(['userId', 'slug', 'createdAt', 'expiresAt', 'questionCount']) &&
-               data.userId is string && data.userId.size() <= 128 &&
-               data.slug is string && data.slug.size() <= 64 &&
-               data.createdAt is timestamp &&
-               data.expiresAt is timestamp &&
-               data.questionCount is int && data.questionCount >= 0 && data.questionCount <= 100;
+      function isValidUser(data) {
+        return data.keys().hasAll(['email', 'username', 'createdAt']) &&
+               data.email is string && data.email.size() <= 256 &&
+               data.username is string && data.username.matches('^[a-z0-9_]{3,20}$');
       }
 
       // Questions (Subcollection)
       match /questions/{questionId} {
-        // Only the form owner can see questions and delete them
-        allow read, delete: if isSignedIn() && (
-          // Use get() to check parent form owner
-          get(/databases/$(database)/documents/forms/$(formId)).data.userId == request.auth.uid
-        );
+        // Owner can see all. Public can see only if it has a reply.
+        allow get: if isOwner(userId) || (existing() != null && existing().isPublic == true);
+        allow list: if isOwner(userId) || (resource.data.isPublic == true);
         
-        // No public creation from client SDK - all submissions go through /api/submit (Admin SDK)
-        allow create: if false;
-        allow update: if false;
+        // Deletion only for owner
+        allow delete: if isOwner(userId);
+        
+        // Creation is usually via API, but we'll allow client list/read for owner
+        allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasAny(['reply', 'repliedAt', 'isPublic']);
       }
     }
   }

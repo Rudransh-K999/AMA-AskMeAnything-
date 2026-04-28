@@ -6,48 +6,49 @@
       "type": "object",
       "properties": {
         "email": { "type": "string" },
-        "activeFormId": { "type": "string", "description": "ID of the current active AskDrop form" }
+        "username": { "type": "string", "description": "Custom @username" },
+        "displayName": { "type": "string" },
+        "bio": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["email"]
+      "required": ["email", "username", "createdAt"]
     },
-    "Form": {
-      "title": "AskDrop Form",
-      "description": "A temporary question drop box",
+    "Username": {
+      "title": "Username Claim",
+      "description": "Mapping of username to userId to ensure uniqueness",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "slug": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "expiresAt": { "type": "string", "format": "date-time" },
-        "questionCount": { "type": "number" },
-        "isExpired": { "type": "boolean" }
+        "userId": { "type": "string" }
       },
-      "required": ["userId", "slug", "createdAt", "expiresAt", "questionCount"]
+      "required": ["userId"]
     },
     "Question": {
       "title": "Question",
-      "description": "An anonymous question submitted to a form",
+      "description": "An anonymous question submitted to a user",
       "type": "object",
       "properties": {
         "text": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "ipHash": { "type": "string" }
+        "reply": { "type": "string", "description": "The answer from the user" },
+        "repliedAt": { "type": "string", "format": "date-time" },
+        "isPublic": { "type": "boolean", "description": "Whether the reply is published" }
       },
-      "required": ["text", "createdAt", "ipHash"]
+      "required": ["text", "createdAt"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User metadata"
+      "description": "User profile"
     },
-    "/forms/{formId}": {
-      "schema": "Form",
-      "description": "The AskDrop forms"
+    "/usernames/{username}": {
+      "schema": "Username",
+      "description": "Unique username registry"
     },
-    "/forms/{formId}/questions/{questionId}": {
+    "/users/{userId}/questions/{questionId}": {
       "schema": "Question",
-      "description": "Subcollection of questions for a specific form"
+      "description": "Questions received by the user"
     }
   }
 }

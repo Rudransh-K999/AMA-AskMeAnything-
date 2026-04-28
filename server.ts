@@ -18,13 +18,19 @@ try {
   let adminApp;
 
   if (serviceAccountVar) {
-    console.log('Initializing Firebase Admin with provided Service Account...');
-    adminApp = initializeApp({
-      credential: cert(JSON.parse(serviceAccountVar)),
-      projectId: firebaseConfig.projectId,
-    });
+    try {
+      console.log('Initializing Firebase Admin with provided Service Account...');
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      adminApp = initializeApp({
+        credential: cert(serviceAccount),
+        projectId: firebaseConfig.projectId,
+      });
+    } catch (err) {
+      console.error('ERROR: FIREBASE_SERVICE_ACCOUNT environment variable is not valid JSON.');
+      throw err;
+    }
   } else {
-    console.log('Initializing Firebase Admin with Default Credentials (ADC)...');
+    console.warn('WARNING: No FIREBASE_SERVICE_ACCOUNT found. Falling back to Application Default Credentials...');
     adminApp = initializeApp({
       projectId: firebaseConfig.projectId,
     });
@@ -41,73 +47,49 @@ try {
 
     app.use(express.json());
 
+    // Health Check
+    app.get('/api/health', (req, res) => {
+      res.json({ 
+        status: 'ok', 
+        env: process.env.NODE_ENV,
+        firebaseInitialized: !!adminApp
+      });
+    });
+
     // API Routes
     
-    // Submit a question
+    // Submit a question to a user's profile
     app.post('/api/submit', async (req, res) => {
       try {
-        const { formId, text } = req.body;
-        const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-        
-        // Hash IP
-        const salt = process.env.IP_HASH_SALT || 'default_salt';
-        const ipHash = crypto.createHash('sha256').update(`${ip}-${salt}`).digest('hex');
+        const { username, text } = req.body;
 
-        if (!formId || !text) {
+        if (!username || !text) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const formRef = dbInstance.collection('forms').doc(formId);
-        const formDoc = await formRef.get();
-
-        if (!formDoc.exists) {
-          return res.status(404).json({ error: 'Form not found' });
+        if (text.length > 1000) {
+          return res.status(400).json({ error: 'Question too long' });
         }
 
-        const formData = formDoc.data();
-        const now = new Date();
-
-        const expiresAt = formData?.expiresAt?.toDate ? formData.expiresAt.toDate() : new Date(formData?.expiresAt?._seconds * 1000 || formData?.expiresAt);
-
-        if (formData?.isExpired || expiresAt < now) {
-          return res.status(400).json({ error: 'Form expired' });
+        // Find user by username
+        const usernameDoc = await dbInstance.collection('usernames').doc(username.toLowerCase()).get();
+        if (!usernameDoc.exists) {
+          return res.status(404).json({ error: 'User not found' });
         }
 
-        if (formData?.questionCount >= 100) {
-          return res.status(400).json({ error: 'Maximum questions reached' });
-        }
-
-        // Check if IP already submitted to THIS form
-        const existingQuestion = await formRef.collection('questions').where('ipHash', '==', ipHash).limit(1).get();
-        if (!existingQuestion.empty) {
-          return res.status(400).json({ error: 'You’ve already submitted.' });
-        }
-
-        // Create question and increment count atomically
-        await dbInstance.runTransaction(async (transaction) => {
-          const freshFormDoc = await transaction.get(formRef);
-          const freshCount = freshFormDoc.data()?.questionCount || 0;
-          
-          if (freshCount >= 100) {
-            throw new Error('Limit reached during transaction');
-          }
-
-          const newQuestionRef = formRef.collection('questions').doc();
-          transaction.set(newQuestionRef, {
-            text: text.substring(0, 1000), // Basic length limit
-            createdAt: FieldValue.serverTimestamp(),
-            ipHash: ipHash
-          });
-
-          transaction.update(formRef, {
-            questionCount: freshCount + 1
-          });
+        const { userId } = usernameDoc.data()!;
+        
+        // Add question to user's questions subcollection
+        await dbInstance.collection('users').doc(userId).collection('questions').add({
+          text,
+          createdAt: FieldValue.serverTimestamp(),
+          isPublic: false, // Default to hidden until replied
         });
 
         res.status(200).json({ success: true });
       } catch (error: any) {
         console.error('Error submitting question:', error);
-        res.status(500).json({ error: error.message || 'Internal server error', details: error.stack });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -154,8 +136,11 @@ try {
     });
   }
 
-  startServer();
+  await startServer();
 } catch (error) {
   console.error('CRITICAL: Failed to initialize Firebase Admin:', error);
+  // In production, we might want to keep the server running but in a limited mode
+  // so the user can at least see a "Maintenance" or "Setup" page rather than a 503.
+  // For now, we exit so Render shows a deployment failure.
   process.exit(1);
 }

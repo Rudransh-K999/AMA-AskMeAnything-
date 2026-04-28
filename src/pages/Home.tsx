@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { Shield, Clock, Infinity, Smartphone } from 'lucide-react';
+import { Shield, Smartphone, AtSign, MessageSquareQuote } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -18,13 +18,13 @@ export default function Home() {
           <span className="text-neutral-600">Then watch them vanish.</span>
         </h1>
         <p className="text-neutral-400 text-lg sm:text-xl max-w-xl mx-auto mb-12">
-          A temporary anonymous question drop box with strict rules. 
-          Expires in 48 hours. Max 100 questions. No replies.
+          Your personal anonymous AMA page. 
+          Claim your @username, receive questions, and reply publicly.
         </p>
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link to="/signup" className="w-full sm:w-auto px-8 py-4 bg-white text-black font-semibold rounded-2xl hover:bg-neutral-200 transition-all transform hover:scale-105">
-            Create your AskDrop
+            Claim your @username
           </Link>
           <Link to="/login" className="w-full sm:w-auto px-8 py-4 bg-transparent border border-neutral-800 text-white font-semibold rounded-2xl hover:bg-neutral-900 transition-all">
             Login to dashboard
@@ -34,9 +34,9 @@ export default function Home() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-32 text-left">
         {[
-          { icon: Clock, title: "48h Expiry", desc: "Forms and all questions are permanently deleted after 48 hours. No traces." },
-          { icon: Shield, title: "Purely Anonymous", desc: "One question per IP. No accounts required for askers. Hashed IP tracking." },
-          { icon: Infinity, title: "Strictly Limited", desc: "Maximum 100 questions per drop. No public feed. Privacy by design." },
+          { icon: AtSign, title: "Custom @Username", desc: "Get a dedicated link like /a/yourname. One profile, infinite questions." },
+          { icon: MessageSquareQuote, title: "Public Replies", desc: "Choose which questions to answer publicly on your profile for everyone to see." },
+          { icon: Shield, title: "Purely Anonymous", desc: "Askers remain anonymous. No accounts required to ask a question." },
           { icon: Smartphone, title: "Minimal UI", desc: "Focused on the message. No clutter, no ads, no distraction. Just questions." }
         ].map((feat, i) => (
           <motion.div 

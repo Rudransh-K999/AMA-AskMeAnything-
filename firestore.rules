@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'activeFormId']);
+      
+      function isValidUser(data) {
+        return data.keys().hasAll(['email']) &&
+               data.email is string && data.email.size() <= 256;
+      }
+    }
+
+    // Forms
+    match /forms/{formId} {
+      // get: Public needs to see if form exists and is not expired
+      // list: Users can list their own forms in dashboard
+      allow get: if true;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidForm(incoming()) && incoming().userId == request.auth.uid;
+      allow update: if isOwner(existing().userId) && isValidForm(incoming()) && 
+                    (incoming().diff(existing()).affectedKeys().hasOnly(['questionCount', 'isExpired']));
+      allow delete: if isOwner(existing().userId);
+
+      function isValidForm(data) {
+        return data.keys().hasAll(['userId', 'slug', 'createdAt', 'expiresAt', 'questionCount']) &&
+               data.userId is string && data.userId.size() <= 128 &&
+               data.slug is string && data.slug.size() <= 64 &&
+               data.createdAt is timestamp &&
+               data.expiresAt is timestamp &&
+               data.questionCount is int && data.questionCount >= 0 && data.questionCount <= 100;
+      }
+
+      // Questions (Subcollection)
+      match /questions/{questionId} {
+        // Only the form owner can see questions and delete them
+        allow read, delete: if isSignedIn() && (
+          // Use get() to check parent form owner
+          get(/databases/$(database)/documents/forms/$(formId)).data.userId == request.auth.uid
+        );
+        
+        // No public creation from client SDK - all submissions go through /api/submit (Admin SDK)
+        allow create: if false;
+        allow update: if false;
+      }
+    }
+  }
+}

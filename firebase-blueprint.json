@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and state",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "activeFormId": { "type": "string", "description": "ID of the current active AskDrop form" }
+      },
+      "required": ["email"]
+    },
+    "Form": {
+      "title": "AskDrop Form",
+      "description": "A temporary question drop box",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "slug": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "questionCount": { "type": "number" },
+        "isExpired": { "type": "boolean" }
+      },
+      "required": ["userId", "slug", "createdAt", "expiresAt", "questionCount"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "An anonymous question submitted to a form",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "ipHash": { "type": "string" }
+      },
+      "required": ["text", "createdAt", "ipHash"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User metadata"
+    },
+    "/forms/{formId}": {
+      "schema": "Form",
+      "description": "The AskDrop forms"
+    },
+    "/forms/{formId}/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Subcollection of questions for a specific form"
+    }
+  }
+}

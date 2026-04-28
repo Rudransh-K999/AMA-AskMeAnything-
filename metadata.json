@@ -1,0 +1,6 @@
+{
+  "name": "AskDrop",
+  "description": "A temporary anonymous question drop box system with strict rules and minimal design.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

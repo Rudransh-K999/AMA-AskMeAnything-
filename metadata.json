@@ -1,6 +1,6 @@
 {
-  "name": "AskDrop",
-  "description": "A temporary anonymous question drop box system with strict rules and minimal design.",
+  "name": "AMA (AskMeAnything)",
+  "description": "Ask Anything. Stay Unknown. Your personal anonymous AMA page with built-in replies and privacy features.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

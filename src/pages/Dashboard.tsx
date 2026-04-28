@@ -10,7 +10,7 @@ import {
   getDoc,
   onSnapshot, 
   orderBy, 
-  deleteDoc,
+  where,
   updateDoc,
   serverTimestamp,
   Timestamp
@@ -20,14 +20,13 @@ import {
   ExternalLink, 
   Copy, 
   Check,
-  AlertCircle,
   MessageCircle,
   Reply,
   Globe,
-  Settings,
-  X
+  Plus,
+  Clock
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subDays } from 'date-fns';
 import { UserProfile, Question, OperationType } from '../types';
 import { handleFirestoreError } from '../lib/firestore-error';
 import { cn } from '../lib/utils';
@@ -38,10 +37,8 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   
-  // State for replying
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
@@ -59,7 +56,6 @@ export default function Dashboard() {
         setProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
       } catch (err: any) {
         console.error("Dashboard Config Error:", err);
-        setError("Failed to load profile.");
       } finally {
         setLoading(false);
       }
@@ -71,8 +67,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user || !profile) return;
 
+    // Filter for 48 hours life
+    const fortyEightHoursAgo = Timestamp.fromDate(subDays(new Date(), 2));
+
     const q = query(
       collection(db, `users/${user.uid}/questions`), 
+      where('createdAt', '>=', fortyEightHoursAgo),
       orderBy('createdAt', 'desc')
     );
     
@@ -92,7 +92,7 @@ export default function Dashboard() {
       await updateDoc(doc(db, `users/${user.uid}/questions`, questionId), {
         reply: replyText,
         repliedAt: serverTimestamp(),
-        isPublic: true // Publish automatically on reply
+        isPublic: true
       });
       setReplyingTo(null);
       setReplyText('');
@@ -100,15 +100,6 @@ export default function Dashboard() {
       handleFirestoreError(error, OperationType.UPDATE, `questions/${questionId}`);
     } finally {
       setSubmittingReply(false);
-    }
-  };
-
-  const deleteQuestion = async (questionId: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, `users/${user.uid}/questions`, questionId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `questions/${questionId}`);
     }
   };
 
@@ -121,182 +112,156 @@ export default function Dashboard() {
   };
 
   if (loading) return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="text-neutral-500 font-mono text-xs animate-pulse">CONNECTING...</div>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="text-white font-mono text-[10px] tracking-[0.2em] animate-pulse">AMA // CONNECTING</div>
     </div>
   );
 
   if (!profile) return null;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Header/Stats */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="p-8 bg-neutral-900/50 rounded-[32px] border border-neutral-800">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center text-2xl font-bold border-2 border-neutral-700">
-                {profile.displayName?.[0].toUpperCase()}
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <h2 className="font-bold text-xl truncate">{profile.displayName}</h2>
-                <p className="text-neutral-500 text-sm font-mono truncate">@{profile.username}</p>
-              </div>
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
+      <div className="max-w-7xl mx-auto px-6 py-12 lg:py-24">
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-20">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black rounded-lg text-lg">AMA</div>
+              <span className="font-display font-black tracking-tighter text-xl uppercase">AskMeAnything</span>
             </div>
-
-            <div className="space-y-4 pt-6 border-t border-neutral-800">
-              <div className="flex items-center justify-between p-4 bg-neutral-950 border border-neutral-800 rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="w-4 h-4 text-neutral-500" />
-                  <span className="text-xs font-mono text-neutral-400">Total Questions</span>
-                </div>
-                <span className="font-bold text-white">{questions.length}</span>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button 
-                  onClick={copyLink}
-                  className="w-full flex items-center justify-between p-4 bg-neutral-950 border border-neutral-800 rounded-2xl hover:border-neutral-600 transition-all group"
-                >
-                  <span className="text-xs font-mono text-neutral-400 truncate max-w-[180px]">/a/{profile.username}</span>
-                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-neutral-500 group-hover:text-white" />}
-                </button>
-                <a 
-                  href={`/a/${profile.username}`}
-                  target="_blank"
-                  className="w-full flex items-center justify-center gap-2 p-4 bg-neutral-800 text-white rounded-2xl hover:bg-neutral-700 transition-all text-sm font-medium"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open Public Link
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 bg-blue-500/5 rounded-3xl border border-blue-500/10 flex gap-4">
-            <Globe className="w-5 h-5 text-blue-500 shrink-0" />
-            <p className="text-xs text-blue-500/80 leading-relaxed">
-              Your profile is live! Anyone with the link can send you anonymous questions.
+            <h1 className="text-4xl lg:text-7xl font-black tracking-tighter leading-[0.8] mb-4">
+              WELCOME BACK, {profile.displayName?.toUpperCase().split(' ')[0]}.
+            </h1>
+            <p className="text-neutral-500 font-mono text-xs uppercase tracking-widest">
+              Live at <span className="text-white hover:underline cursor-pointer" onClick={copyLink}>/a/{profile.username}</span>
             </p>
           </div>
-        </div>
+          
+          <div className="flex items-center gap-4">
+            <button onClick={copyLink} className="btn-secondary flex items-center gap-2 text-xs font-bold uppercase tracking-widest px-8">
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied' : 'Copy Link'}
+            </button>
+            <a href={`/a/${profile.username}`} target="_blank" className="btn-primary flex items-center gap-2 text-xs font-bold uppercase tracking-widest px-8">
+              <Globe className="w-4 h-4" />
+              Public View
+            </a>
+          </div>
+        </header>
 
-        {/* Main Feed */}
-        <div className="lg:col-span-8">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Inbox</h1>
-            <div className="flex gap-2">
-               {/* Could add filters here */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+          {/* Main Feed */}
+          <div className="lg:col-span-8">
+            <div className="flex items-center justify-between mb-8 border-b border-neutral-800 pb-4">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-neutral-500 flex items-center gap-2">
+                <Plus className="w-3 h-3" />
+                Inbox ({questions.length})
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <AnimatePresence mode="popLayout">
+                {questions.length === 0 ? (
+                    <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="py-32 text-center glass rounded-[32px] text-neutral-600 font-mono text-xs uppercase tracking-widest"
+                    >
+                    Inbox empty. Share your link.
+                    </motion.div>
+                ) : (
+                    questions.map((q) => (
+                    <motion.div 
+                        key={q.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={cn(
+                        "glass p-8 rounded-[32px] transition-all hover:border-neutral-700 group",
+                        q.reply ? "opacity-60 grayscale-[0.5]" : ""
+                        )}
+                    >
+                        <div className="flex justify-between items-start mb-6">
+                        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-neutral-600">
+                            RECEIVED {q.createdAt?.toDate ? formatDistanceToNow(q.createdAt.toDate(), { addSuffix: true }).toUpperCase() : 'NOW'}
+                        </span>
+                        </div>
+                        
+                        <p className="text-2xl font-display font-medium tracking-tight mb-8">
+                        {q.text}
+                        </p>
+
+                        {replyingTo === q.id ? (
+                        <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                            <textarea
+                            autoFocus
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Type your response..."
+                            className="w-full bg-black border border-neutral-800 rounded-2xl p-6 text-sm focus:outline-none focus:border-white transition-all resize-none min-h-[120px]"
+                            />
+                            <div className="flex gap-2 justify-end">
+                            <button onClick={() => setReplyingTo(null)} className="btn-secondary px-6 text-[10px] uppercase tracking-widest">Cancel</button>
+                            <button 
+                                onClick={() => handleReply(q.id)}
+                                disabled={submittingReply || !replyText.trim()}
+                                className="btn-primary px-8 text-[10px] uppercase tracking-widest"
+                            >
+                                {submittingReply ? 'Sending...' : 'Publish Reply'}
+                            </button>
+                            </div>
+                        </div>
+                        ) : q.reply ? (
+                        <div className="pt-6 border-t border-neutral-800/50">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">Replied publicly</span>
+                                <button onClick={() => {setReplyingTo(q.id); setReplyText(q.reply!);}} className="text-[10px] font-mono text-neutral-400 hover:text-white underline">Edit</button>
+                            </div>
+                            <p className="text-neutral-400 text-sm leading-relaxed">{q.reply}</p>
+                        </div>
+                        ) : (
+                        <button 
+                            onClick={() => setReplyingTo(q.id)}
+                            className="w-full btn-secondary py-4 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
+                        >
+                            <Reply className="w-3 h-3" />
+                            Compose Reply
+                        </button>
+                        )}
+                    </motion.div>
+                    ))
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
-          <div className="space-y-6">
-            <AnimatePresence mode="popLayout">
-              {questions.length === 0 ? (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="py-20 text-center border-2 border-dashed border-neutral-900 rounded-[32px] text-neutral-600 italic"
-                >
-                  No questions yet. Share your link to start receiving them!
-                </motion.div>
-              ) : (
-                questions.map((q) => (
-                  <motion.div 
-                    key={q.id}
-                    layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className={cn(
-                      "group p-8 bg-neutral-900/30 border rounded-[32px] transition-all relative overflow-hidden",
-                      q.reply ? "border-neutral-800" : "border-neutral-900 bg-neutral-900/50"
-                    )}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-neutral-600">
-                        {q.createdAt?.toDate ? formatDistanceToNow(q.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {q.isPublic && (
-                          <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full border border-green-500/20">PUBLIC</span>
-                        )}
-                        <button 
-                          onClick={() => deleteQuestion(q.id)}
-                          className="p-2 text-neutral-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <p className="text-xl leading-relaxed text-neutral-100 break-words mb-6">
-                      {q.text}
-                    </p>
+          {/* Sidebar */}
+          <div className="lg:col-span-4 lg:sticky lg:top-12 self-start space-y-8">
+            <div className="glass p-8 rounded-[32px]">
+              <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-500 mb-6">Stats</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-center">
+                  <div className="text-2xl font-black mb-1">{questions.length}</div>
+                  <div className="text-[8px] font-mono text-neutral-500 uppercase tracking-widest">Total</div>
+                </div>
+                <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-center">
+                  <div className="text-2xl font-black mb-1">{questions.filter(q => q.reply).length}</div>
+                  <div className="text-[8px] font-mono text-neutral-500 uppercase tracking-widest">Answered</div>
+                </div>
+              </div>
+            </div>
 
-                    {/* Reply Section */}
-                    {replyingTo === q.id ? (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-4"
-                      >
-                        <textarea
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          placeholder="Type your reply..."
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl p-4 text-sm focus:outline-none focus:border-neutral-600 transition-all resize-none min-h-[100px]"
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <button 
-                            onClick={() => setReplyingTo(null)}
-                            className="px-4 py-2 text-sm text-neutral-500 hover:text-white"
-                          >
-                            Cancel
-                          </button>
-                          <button 
-                            onClick={() => handleReply(q.id)}
-                            disabled={submittingReply || !replyText.trim()}
-                            className="bg-white text-black px-6 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
-                          >
-                            {submittingReply ? 'Replying...' : 'Reply & Publish'}
-                          </button>
-                        </div>
-                      </motion.div>
-                    ) : q.reply ? (
-                      <div className="pt-6 border-t border-neutral-800 flex gap-4">
-                        <div className="w-6 h-6 rounded-full bg-neutral-700 flex items-center justify-center text-[10px] font-bold text-neutral-400 shrink-0">
-                          YOU
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] text-neutral-500 font-bold">Replied</span>
-                            <button 
-                              onClick={() => {
-                                setReplyingTo(q.id);
-                                setReplyText(q.reply!);
-                              }}
-                              className="text-[10px] text-neutral-500 hover:text-white font-mono"
-                            >
-                              EDIT
-                            </button>
-                          </div>
-                          <p className="text-neutral-400 text-sm whitespace-pre-wrap">{q.reply}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => setReplyingTo(q.id)}
-                        className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-neutral-800 rounded-2xl text-neutral-500 hover:text-white hover:border-neutral-600 transition-all text-sm font-medium"
-                      >
-                        <Reply className="w-4 h-4" />
-                        Reply to this question
-                      </button>
-                    )}
-                  </motion.div>
-                ))
-              )}
-            </AnimatePresence>
+            <div className="glass p-8 rounded-[32px] overflow-hidden group">
+              <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-500 mb-4">Live URL</h3>
+              <div 
+                onClick={copyLink}
+                className="font-display font-medium text-lg mb-4 truncate text-neutral-400 group-hover:text-white transition-colors cursor-pointer"
+              >
+                ama.xyz/a/{profile.username}
+              </div>
+              <button onClick={copyLink} className="w-full btn-primary text-xs tracking-widest uppercase">
+                {copied ? 'Link Copied' : 'Copy Invite Link'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

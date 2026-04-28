@@ -70,8 +70,12 @@ export default function Setup() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-12"
       >
-        <h1 className="text-4xl font-bold tracking-tight mb-4">Claim your handle</h1>
-        <p className="text-neutral-500">Pick a unique username for your AMA page.</p>
+        <div className="flex items-center gap-2 mb-12 justify-center">
+          <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-black rounded-lg text-xs">AMA</div>
+          <span className="font-display font-black tracking-tighter text-lg uppercase">AskMeAnything</span>
+        </div>
+        <h1 className="text-4xl font-bold tracking-tight mb-4 uppercase">Claim your handle</h1>
+        <p className="text-neutral-500 text-xs font-mono uppercase tracking-widest leading-relaxed">Pick a unique username for your AMA page.</p>
       </motion.div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

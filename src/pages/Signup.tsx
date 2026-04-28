@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
-import { Mail, Lock, Loader2 } from 'lucide-react';
-import { handleFirestoreError, OperationType } from '../lib/firestore-error';
+import { auth } from '../services/firebase';
+import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -19,19 +17,9 @@ export default function Signup() {
     setLoading(true);
     setError('');
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Create user profile in Firestore
-      const userPath = `users/${userCredential.user.uid}`;
-      try {
-        await setDoc(doc(db, userPath), {
-          email: email,
-          createdAt: new Date(),
-          activeFormId: null
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, userPath);
-      }
-      navigate('/dashboard');
+      await createUserWithEmailAndPassword(auth, email, password);
+      // Redirect to setup to claim username
+      navigate('/setup');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -40,49 +28,52 @@ export default function Signup() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-6 py-24">
+    <div className="min-h-[80vh] flex flex-col items-center justify-center px-6">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-neutral-900/50 p-8 rounded-3xl border border-neutral-800"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full glass p-12 rounded-[48px]"
       >
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Join AskDrop</h1>
-        <p className="text-neutral-500 mb-8 text-sm">Start collecting anonymous questions today.</p>
+        <div className="flex items-center gap-2 mb-12 justify-center">
+            <div className="w-6 h-6 bg-white text-black flex items-center justify-center font-black rounded-sm text-[10px]">AMA</div>
+            <span className="font-display font-black tracking-tighter text-xs uppercase">AskMeAnything</span>
+        </div>
+
+        <h1 className="text-4xl font-black tracking-tighter mb-2 text-center uppercase">Genesis.</h1>
+        <p className="text-neutral-500 mb-12 text-xs font-mono uppercase tracking-widest text-center">Create your presence on AMA.</p>
         
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono uppercase tracking-widest rounded-2xl">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSignup} className="space-y-4">
-          <div>
-            <label className="block text-xs font-mono text-neutral-500 uppercase tracking-widest mb-1.5 ml-1">Email</label>
+        <form onSubmit={handleSignup} className="space-y-6">
+          <div className="space-y-2">
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600" />
+              <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-700" />
               <input 
                 type="email" 
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-white transition-colors"
+                placeholder="EMAIL ADDRESS"
+                className="w-full bg-black border border-neutral-800 rounded-2xl py-5 pl-14 pr-6 text-xs font-mono uppercase tracking-widest focus:outline-none focus:border-white transition-all placeholder:text-neutral-800"
               />
             </div>
           </div>
           
-          <div>
-            <label className="block text-xs font-mono text-neutral-500 uppercase tracking-widest mb-1.5 ml-1">Password</label>
+          <div className="space-y-2">
             <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600" />
+              <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-700" />
               <input 
                 type="password" 
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-white transition-colors"
+                placeholder="PASSWORD (6+ CHARS)"
+                className="w-full bg-black border border-neutral-800 rounded-2xl py-5 pl-14 pr-6 text-xs font-mono uppercase tracking-widest focus:outline-none focus:border-white transition-all placeholder:text-neutral-800"
               />
             </div>
           </div>
@@ -90,15 +81,20 @@ export default function Signup() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full py-4 bg-white text-black font-semibold rounded-2xl hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 mt-4"
+            className="w-full btn-primary py-5 rounded-2xl flex items-center justify-center gap-3 mt-4 text-[10px] uppercase tracking-[0.2em]"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create account'}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <>
+                    Start Journey
+                    <ArrowRight className="w-4 h-4" />
+                </>
+            )}
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-neutral-500">
-          Already have an account?{' '}
-          <Link to="/login" className="text-white hover:underline">Sign in</Link>
+        <p className="mt-12 text-center text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+          Already a member?{' '}
+          <Link to="/login" className="text-white hover:underline">Access Account</Link>
         </p>
       </motion.div>
     </div>

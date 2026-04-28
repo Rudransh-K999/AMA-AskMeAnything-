@@ -11,7 +11,7 @@ import {
   doc, 
   getDoc,
   orderBy,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
 import { 
   Send, 
@@ -19,86 +19,72 @@ import {
   AlertCircle, 
   Loader2, 
   ArrowLeft,
-  MessageCircle,
-  MessageSquareQuote
+  Plus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { UserProfile, Question } from '../types';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subDays } from 'date-fns';
 
 export default function PublicProfile() {
   const { username } = useParams();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [repliedQuestions, setRepliedQuestions] = useState<Question[]>([]);
+  const [replies, setReplies] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [question, setQuestion] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ask' | 'replies'>('ask');
+  const [tab, setTab] = useState<'ask' | 'feed'>('ask');
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const init = async () => {
       if (!username) return;
       try {
-        setLoading(true);
-        // 1. Resolve username to userId
-        const usernameDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()));
-        
-        if (!usernameDoc.exists()) {
+        const uDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()));
+        if (!uDoc.exists()) {
           setError('User not found.');
           return;
         }
-
-        const { userId } = usernameDoc.data();
-        
-        // 2. Fetch user profile
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        if (!userDoc.exists()) {
+        const { userId } = uDoc.data();
+        const profileDoc = await getDoc(doc(db, 'users', userId));
+        if (!profileDoc.exists()) {
           setError('Profile not found.');
           return;
         }
+        setProfile({ id: profileDoc.id, ...profileDoc.data() } as UserProfile);
 
-        setProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
+        const fortyEightHoursAgo = Timestamp.fromDate(subDays(new Date(), 2));
 
-        // 3. Fetch public replies
         const q = query(
           collection(db, `users/${userId}/questions`),
           where('isPublic', '==', true),
-          orderBy('repliedAt', 'desc'),
-          limit(50)
+          where('createdAt', '>=', fortyEightHoursAgo),
+          orderBy('createdAt', 'desc'),
+          limit(25)
         );
-        const repliesSnapshot = await getDocs(q);
-        setRepliedQuestions(repliesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Question[]);
+        const snapshot = await getDocs(q);
+        setReplies(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Question[]);
 
-      } catch (err: any) {
-        console.error("Public Profile Fetch Error:", err);
-        setError('Something went wrong while loading the profile.');
+      } catch (err) {
+        setError('Connection failed.');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchProfile();
+    init();
   }, [username]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || !username) return;
-
     setSubmitting(true);
     try {
-      const response = await fetch('/api/submit', {
+      const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, text: question })
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit');
-      }
-
+      if (!res.ok) throw new Error('Submission failed.');
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message);
@@ -108,175 +94,162 @@ export default function PublicProfile() {
   };
 
   if (loading) return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-neutral-800" />
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="text-white font-mono text-[10px] tracking-[0.2em] animate-pulse uppercase">AMA // LOADING PROFILE</div>
     </div>
   );
 
   if (error || !profile) return (
-    <div className="max-w-md mx-auto px-6 py-24 text-center">
-      <div className="w-16 h-16 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-6">
-        <AlertCircle className="w-8 h-8 text-neutral-600" />
-      </div>
-      <h1 className="text-2xl font-bold mb-4">{error || 'Something went wrong.'}</h1>
-      <Link to="/" className="text-neutral-500 hover:text-white inline-flex items-center gap-2 group transition-colors">
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-        Back to AskDrop
-      </Link>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black px-6 text-center">
+      <AlertCircle className="w-12 h-12 text-neutral-800 mb-6" />
+      <h1 className="text-3xl font-black mb-4">MEMBER NOT FOUND.</h1>
+      <Link to="/" className="btn-secondary text-xs uppercase tracking-widest px-8">Back to home</Link>
     </div>
   );
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 md:py-24">
-      {/* Profile Header */}
-      <div className="text-center mb-12">
-        <div className="w-24 h-24 bg-neutral-800 rounded-full mx-auto mb-6 overflow-hidden border-4 border-neutral-900">
-          {profile.photoURL ? (
-            <img src={profile.photoURL} alt={profile.displayName} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-900 text-3xl font-bold">
-              {profile.displayName?.[0].toUpperCase()}
-            </div>
-          )}
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black pb-24">
+      <div className="max-w-2xl mx-auto px-6 pt-24">
+        {/* Profile Header */}
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-black rounded-lg text-xs">AMA</div>
+            <span className="font-display font-black tracking-tighter text-sm uppercase">AskMeAnything</span>
+          </div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-24 h-24 bg-neutral-900 rounded-[32px] mx-auto mb-6 flex items-center justify-center text-4xl font-bold border border-neutral-800 overflow-hidden"
+          >
+            {profile.photoURL ? (
+                <img src={profile.photoURL} alt="" className="w-full h-full object-cover" />
+            ) : profile.displayName?.[0].toUpperCase()}
+          </motion.div>
+
+          <h1 className="text-4xl lg:text-5xl font-black tracking-tighter mb-2 uppercase">
+            {profile.displayName}
+          </h1>
+          <p className="font-mono text-xs uppercase tracking-widest text-neutral-500 mb-8">
+            @{profile.username}
+          </p>
+
+          <div className="flex items-center justify-center gap-2 p-1 glass rounded-2xl inline-flex">
+            <button 
+              onClick={() => setTab('ask')}
+              className={cn(
+                "px-8 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
+                tab === 'ask' ? "bg-white text-black" : "text-neutral-500 hover:text-white"
+              )}
+            >
+              Ask
+            </button>
+            <button 
+              onClick={() => setTab('feed')}
+              className={cn(
+                "px-8 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
+                tab === 'feed' ? "bg-white text-black" : "text-neutral-500 hover:text-white"
+              )}
+            >
+              Replies ({replies.length})
+            </button>
+          </div>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">{profile.displayName}</h1>
-        <p className="text-neutral-500 font-mono text-sm mb-4">@{profile.username}</p>
-        {profile.bio && (
-          <p className="text-neutral-400 max-w-sm mx-auto mb-8">{profile.bio}</p>
-        )}
 
-        {/* Tabs */}
-        <div className="flex items-center justify-center gap-2 p-1 bg-neutral-900/50 rounded-2xl inline-flex mb-8">
-          <button 
-            onClick={() => setActiveTab('ask')}
-            className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-              activeTab === 'ask' ? "bg-white text-black" : "text-neutral-500 hover:text-white"
-            )}
-          >
-            <MessageCircle className="w-4 h-4" />
-            Ask
-          </button>
-          <button 
-            onClick={() => setActiveTab('replies')}
-            className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-              activeTab === 'replies' ? "bg-white text-black" : "text-neutral-500 hover:text-white"
-            )}
-          >
-            <MessageSquareQuote className="w-4 h-4" />
-            Replies
-            {repliedQuestions.length > 0 && (
-              <span className="text-[10px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded-md">
-                {repliedQuestions.length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {activeTab === 'ask' ? (
-          <motion.div
-            key="ask"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-          >
-            {!submitted ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="relative group">
-                  <textarea
-                    required
-                    value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
-                    placeholder={`Ask ${profile.displayName} anything...`}
-                    className="w-full h-48 bg-neutral-900/50 border border-neutral-800 rounded-[32px] p-8 text-lg focus:outline-none focus:border-neutral-600 focus:bg-neutral-900 transition-all resize-none shadow-2xl group-hover:border-neutral-700"
-                    maxLength={1000}
-                  />
-                  <div className="absolute bottom-6 right-8 text-xs font-mono text-neutral-600">
-                    {question.length}/1000
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting || !question.trim()}
-                  className={cn(
-                    "w-full py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all",
-                    submitting || !question.trim() 
-                      ? "bg-neutral-900 text-neutral-600 cursor-not-allowed" 
-                      : "bg-white text-black hover:bg-neutral-200 hover:scale-[1.02] active:scale-[0.98]"
-                  )}
-                >
-                  {submitting ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <>
-                      <Send className="w-5 h-5" />
-                      Drop question
-                    </>
-                  )}
-                </button>
-              </form>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+        <AnimatePresence mode="wait">
+          {tab === 'ask' ? (
+            <motion.div 
+                key="ask"
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-12"
-              >
-                <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-8 text-green-500">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <h2 className="text-3xl font-bold mb-4 tracking-tight">Question Sent!</h2>
-                <p className="text-neutral-500 mb-8">Your anonymous question was delivered.</p>
-                <button 
-                  onClick={() => setSubmitted(false)}
-                  className="text-white font-bold hover:underline"
-                >
-                  Ask another?
-                </button>
-              </motion.div>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="replies"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className="space-y-6"
-          >
-            {repliedQuestions.length === 0 ? (
-              <div className="text-center py-12 text-neutral-600 italic">
-                No questions answered yet.
-              </div>
-            ) : (
-              repliedQuestions.map((q) => (
-                <div key={q.id} className="bg-neutral-900/50 border border-neutral-800 rounded-[32px] overflow-hidden">
-                  <div className="p-8">
-                    <p className="text-lg text-neutral-300 mb-6 font-medium">"{q.text}"</p>
-                    <div className="flex items-start gap-4 p-6 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-black font-bold shrink-0 text-xs">
-                        {profile.displayName?.[0]}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-white">{profile.displayName} replied</span>
-                          <span className="text-[10px] font-mono text-neutral-600">
-                            {q.repliedAt?.toDate ? formatDistanceToNow(q.repliedAt.toDate(), { addSuffix: true }) : 'Recently'}
-                          </span>
+                exit={{ opacity: 0, scale: 0.98 }}
+            >
+                {!submitted ? (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="relative">
+                            <textarea
+                                required
+                                value={question}
+                                onChange={(e) => setQuestion(e.target.value)}
+                                placeholder={`ASK ${profile.displayName?.toUpperCase()} ANYTHING...`}
+                                className="w-full h-64 bg-neutral-900/50 border border-neutral-800 rounded-[40px] p-10 text-xl font-medium focus:outline-none focus:border-neutral-600 focus:bg-neutral-900 transition-all resize-none font-display uppercase tracking-tight placeholder:text-neutral-800"
+                                maxLength={1000}
+                            />
+                            <div className="absolute bottom-10 right-10 font-mono text-[10px] text-neutral-800 uppercase tracking-widest">
+                                {question.length} / 1000
+                            </div>
                         </div>
-                        <p className="text-neutral-400 text-sm leading-relaxed whitespace-pre-wrap">{q.reply}</p>
-                      </div>
+
+                        <button
+                            type="submit"
+                            disabled={submitting || !question.trim()}
+                            className="w-full btn-primary py-6 text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                        >
+                            {submitting ? (
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                            ) : (
+                                <>
+                                    <Send className="w-4 h-4" />
+                                    Drop Anonymously
+                                </>
+                            )}
+                        </button>
+                        <p className="text-center text-neutral-700 font-mono text-[8px] uppercase tracking-[0.1em]">
+                            End-to-end encrypted. Fully anonymous.
+                        </p>
+                    </form>
+                ) : (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-20"
+                    >
+                        <CheckCircle2 className="w-20 h-20 text-white mx-auto mb-8 stroke-1" />
+                        <h2 className="text-4xl font-black tracking-tighter mb-4 uppercase">SENT.</h2>
+                        <p className="text-neutral-500 font-mono text-[10px] tracking-widest mb-12 uppercase italic">Success is a quiet echo.</p>
+                        <button onClick={() => {setSubmitted(false); setQuestion('');}} className="btn-secondary px-10 text-[10px] tracking-widest uppercase">Send another</button>
+                    </motion.div>
+                )}
+            </motion.div>
+          ) : (
+            <motion.div 
+                key="feed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-4"
+            >
+                {replies.length === 0 ? (
+                    <div className="py-20 text-center glass rounded-[40px] text-neutral-700 font-mono text-xs uppercase tracking-widest">
+                        SILENCE.
                     </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                ) : (
+                    replies.map((r) => (
+                        <div key={r.id} className="glass p-10 rounded-[40px]">
+                            <div className="flex items-center gap-2 mb-6">
+                                <Plus className="w-2 h-2 text-neutral-700" />
+                                <span className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">
+                                    {r.repliedAt?.toDate ? formatDistanceToNow(r.repliedAt.toDate(), { addSuffix: true }).toUpperCase() : 'RECENTLY'}
+                                </span>
+                            </div>
+                            <p className="text-2xl font-display font-medium tracking-tight mb-8">
+                                {r.text}
+                            </p>
+                            <div className="pt-8 border-t border-neutral-800/50">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="w-5 h-5 bg-white text-black font-black text-[8px] flex items-center justify-center rounded-sm">R</div>
+                                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">Response</span>
+                                </div>
+                                <p className="text-neutral-500 text-sm leading-relaxed whitespace-pre-wrap">
+                                    {r.reply}
+                                </p>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

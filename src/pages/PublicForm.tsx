@@ -42,8 +42,9 @@ export default function PublicForm() {
         } else {
           setForm(formData);
         }
-      } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, 'forms');
+      } catch (err: any) {
+        console.error("Public Form Fetch Error:", err);
+        setError(err.message || 'Something went wrong while loading the form.');
       } finally {
         setLoading(false);
       }

@@ -65,7 +65,6 @@ export default function Dashboard() {
 
         if (current) {
           setActiveForm(current);
-          subscribeToQuestions(current.id);
         } else {
           setActiveForm(null);
           setQuestions([]);
@@ -105,17 +104,25 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [activeForm]);
 
-  const subscribeToQuestions = (formId: string) => {
-    const q = query(
-      collection(db, `forms/${formId}/questions`), 
-      orderBy('createdAt', 'desc')
-    );
-    return onSnapshot(q, (snapshot) => {
-      setQuestions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Question[]);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `forms/${formId}/questions`);
-    });
-  };
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    if (activeForm) {
+      const q = query(
+        collection(db, `forms/${activeForm.id}/questions`), 
+        orderBy('createdAt', 'desc')
+      );
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        setQuestions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Question[]);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, `forms/${activeForm.id}/questions`);
+      });
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [activeForm]);
 
   const createForm = async () => {
     if (!user) return;
@@ -135,7 +142,6 @@ export default function Dashboard() {
 
       const newForm: AskDropForm = { id: formRef.id, userId: user.uid, slug, createdAt, expiresAt, questionCount: 0, isExpired: false };
       setActiveForm(newForm);
-      subscribeToQuestions(formRef.id);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'forms');
     }

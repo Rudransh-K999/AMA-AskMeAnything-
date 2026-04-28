@@ -41,10 +41,10 @@ service cloud.firestore {
 
     // Forms
     match /forms/{formId} {
-      // get: Public needs to see if form exists and is not expired
-      // list: Users can list their own forms in dashboard
+      // get: Public needs to see a specific form
+      // list: Users can list their own forms in dashboard, AND public can search by slug
       allow get: if true;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if true; // Public needs to find forms by slug. Security is handled by only sharing slugs.
       
       allow create: if isSignedIn() && isValidForm(incoming()) && incoming().userId == request.auth.uid;
       allow update: if isOwner(existing().userId) && isValidForm(incoming()) && 

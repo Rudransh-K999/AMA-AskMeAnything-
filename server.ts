@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initializeApp } from 'firebase-admin/app';
+import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -13,22 +13,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const firebaseConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'firebase-applet-config.json'), 'utf-8'));
 
 // Initialize Firebase Admin
-// If running in production (Cloud Run), we favor default credentials.
-// In development, we use the projectId from the config.
 try {
-  const adminConfig: any = {
-    projectId: firebaseConfig.projectId,
-  };
-  
-  // Use ADC in production, explicit project in dev if needed
-  initializeApp(adminConfig);
+  const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
+  let adminApp;
+
+  if (serviceAccountVar) {
+    console.log('Initializing Firebase Admin with provided Service Account...');
+    adminApp = initializeApp({
+      credential: cert(JSON.parse(serviceAccountVar)),
+      projectId: firebaseConfig.projectId,
+    });
+  } else {
+    console.log('Initializing Firebase Admin with Default Credentials (ADC)...');
+    adminApp = initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+  }
   
   const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
-  const dbInstance = getFirestore(dbId);
+  const dbInstance = getFirestore(adminApp, dbId);
   
-  console.log(`Firebase Admin initialized successfully.`);
-  console.log(`Project: ${firebaseConfig.projectId}`);
-  console.log(`Database: ${dbId}`);
+  console.log(`Firebase Admin initialized successfully for project: ${firebaseConfig.projectId}`);
 
   async function startServer() {
     const app = express();

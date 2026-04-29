@@ -43,7 +43,7 @@ service cloud.firestore {
       allow get: if true; // Public profiles
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'photoURL', 'username', 'isPortalOpen']);
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'photoURL', 'username', 'isPortalOpen', 'portalExpiresAt']);
       
       function isValidUser(data) {
         return data.keys().hasAll(['email', 'username', 'createdAt']) &&
@@ -57,7 +57,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || (isSignedIn() && existing().askerId == request.auth.uid);
         allow list: if isOwner(userId) || (isSignedIn() && resource.data.askerId == request.auth.uid);
         
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || (isSignedIn() && existing().askerId == request.auth.uid);
         allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasAny(['reply', 'repliedAt', 'isPublic']);
       }
     }

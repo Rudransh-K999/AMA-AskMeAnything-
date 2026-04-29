@@ -76,24 +76,30 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-[90vh] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full glass p-12 rounded-[48px]"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="max-w-md w-full glass-card p-12 !rounded-[3rem] relative z-10"
       >
-        <div className="flex items-center gap-2 mb-12 justify-center">
-            <div className="w-6 h-6 bg-white text-black flex items-center justify-center font-black rounded-sm text-[10px]">AMA</div>
-            <span className="font-display font-black tracking-tighter text-xs uppercase">AskMeAnything</span>
+        <div className="flex items-center gap-2 mb-16 justify-center">
+            <h2 className="text-2xl font-black tracking-tighter uppercase italic leading-none">
+                VAULTED<span className="text-brand-purple italic">.</span>
+            </h2>
         </div>
 
-        <h1 className="text-4xl font-black tracking-tighter mb-2 text-center uppercase">Genesis.</h1>
-        <p className="text-neutral-500 mb-12 text-xs font-mono uppercase tracking-widest text-center">Create your presence on AMA.</p>
+        <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-4 text-center uppercase italic leading-[0.8]">Genesis<span className="text-brand-purple">.</span></h1>
+        <p className="text-white/40 mb-12 text-xs font-mono uppercase tracking-[0.4em] text-center font-black">CREATE YOUR PRESENCE ON THE VAULT.</p>
         
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono uppercase tracking-widest rounded-2xl leading-relaxed">
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="mb-6 p-6 bg-red-500/10 border border-red-500/20 text-red-500 text-[11px] font-black uppercase tracking-widest rounded-2xl leading-relaxed"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
         <form onSubmit={handleSignup} className="space-y-4">
@@ -137,7 +143,7 @@ export default function Signup() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full btn-primary py-5 rounded-2xl flex items-center justify-center gap-3 mt-4 text-[10px] uppercase tracking-[0.2em]"
+            className="w-full btn-vibrant-purple py-5 rounded-2xl flex items-center justify-center gap-3 mt-4 text-[11px] uppercase tracking-[0.2em]"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <>
@@ -148,11 +154,14 @@ export default function Signup() {
           </button>
         </form>
 
-        <p className="mt-12 text-center text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-          Already a member?{' '}
-          <Link to="/login" className="text-white hover:underline">Access Account</Link>
+        <p className="mt-12 text-center text-[11px] font-mono uppercase tracking-[0.3em] text-white/30 font-black leading-relaxed">
+          ALREADY A MEMBER? <Link to="/login" className="text-white hover:text-brand-blue transition-colors font-black">ACCESS ACCOUNT</Link>
         </p>
       </motion.div>
+
+      {/* Decorative background blurs */}
+      <div className="absolute top-1/4 right-1/4 translate-x-1/2 w-96 h-96 bg-brand-blue/20 blur-[120px] rounded-full -z-0 animate-pulse"></div>
+      <div className="absolute bottom-1/4 left-1/4 -translate-x-1/3 w-[500px] h-[500px] bg-brand-purple/10 blur-[150px] rounded-full -z-0 animate-float"></div>
     </div>
   );
 }

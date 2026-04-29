@@ -8,6 +8,7 @@ export interface UserProfile {
   bio?: string;
   photoURL?: string;
   isPortalOpen?: boolean;
+  portalExpiresAt?: Date | Timestamp;
   createdAt: Date | Timestamp;
 }
 

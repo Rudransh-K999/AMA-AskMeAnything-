@@ -53,6 +53,7 @@ export default function Signup() {
         email: user.email,
         username: cleanUsername,
         displayName: cleanUsername,
+        isPortalOpen: false,
         createdAt: serverTimestamp(),
       });
 
